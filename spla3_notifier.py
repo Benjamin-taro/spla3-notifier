@@ -12,9 +12,9 @@ TOKEN = os.environ["LINE_CHANNEL_ACCESS_TOKEN"]
 USERS = os.environ["LINE_USER_IDS"].split(",")
 
 EMOJI = {
-    "ガチエリア": "📦",
+    "ガチエリア": "⛳️",
     "ガチヤグラ": "🚚",
-    "ガチホコバトル": "⚓️",   # API によっては “ガチホコ” の表記も
+    "ガチホコバトル": "🐉",   # API によっては “ガチホコ” の表記も
     "ガチアサリ": "🏉",
 }
 
