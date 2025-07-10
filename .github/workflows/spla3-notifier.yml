@@ -1,0 +1,27 @@
+name: Splatoon 3 Bankara Notifier      # ← タイトルも合わせて変更可
+
+on:
+  schedule:
+    - cron: '5 7 * * *'          # 08:05 UTC = 09:05 BST
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    env:
+      LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+      LINE_USER_IDS:            ${{ secrets.LINE_USER_IDS }}   # ← plural
+      TZ: Europe/London
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run notifier
+        run: python spla3_notifier.py
