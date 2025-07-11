@@ -89,6 +89,7 @@ def fest_header():
         fest_list = data["result"]["festivals"]
     else:
         fest_list = []
+    print(f"フェス候補: {len(fest_list)} 件")
     now = datetime.datetime.utcnow().replace(tzinfo=tz.UTC)
     for f in fest_list:
         st, ed = map(to_dt, (f["start_time"], f["end_time"]))
@@ -98,51 +99,84 @@ def fest_header():
     return ""                              # 該当なし
 
 # ───────── ④ メッセージ生成 ─────────
-def build_lines(rows):
-    lines=[]
-    for r in rows:
-        lines.append(
-            f"- {r['start']:%m/%d %H:%M}–{r['end']:%H:%M}\n"
-            f"  {r['rule']}{r['icon']}\n"
-            f"  {r['stg1']}\n"
-            f"  {r['stg2']}\n"
-        )
+def fmt(r: dict) -> str:
+    """1 スロット分をテキスト化"""
+    return (
+        f"- {r['start']:%m/%d %H:%M}–{r['end']:%H:%M}\n"
+        f"  {r['rule']}{r['icon']}\n"
+        f"  {r['stg1']}\n"
+        f"  {r['stg2']}\n"
+    )
+
+def build_lines(rows: list[dict]) -> str:
+    if not rows:
+        return "該当するローテーションはありません。"
+
+    lines = []
+
+    # ① 全部フェスだけなら先頭にヘッダー
+    if all(r["src"] == "fest" for r in rows):
+        lines.append("フェス開催中！\n")
+
+    # ② 行を並べつつ境目でアナウンスを挿入
+    for i, r in enumerate(rows):
+        lines.append(fmt(r))
+
+        # 次があればカテゴリの変わり目をチェック
+        if i + 1 < len(rows) and r["src"] != rows[i + 1]["src"]:
+            if r["src"] == "bankara":      # bankara → fest
+                lines.append("バンカラマッチ終了！\nこれよりフェス開始！\n")
+            else:                          # fest → bankara
+                lines.append("これにてフェス終了！\n通常通りバンカラマッチ開始！\n")
+
     return "\n".join(lines)
+
+# ───────── 抽出関数を少し整理 ─────────
+def pick_rows(raw):
+    """bankara_open と fest を 19/21/23/01 BST だけ抽出して返す"""
+    rows = []
+
+    # ① bankara_open
+    for s in raw["result"]["bankara_open"]:
+        if s["rule"] is None:            # 空スロット無し
+            continue
+        st = to_dt(s["start_time"]).astimezone(UK)
+        if st.hour not in NIGHT_HOURS:
+            continue
+        et   = to_dt(s["end_time"]).astimezone(UK)
+        rule = s["rule"]["name"]; icon = EMOJI.get(rule, "")
+        a, b = s["stages"]
+        rows.append(dict(src="bankara", start=st, end=et,
+                         rule=rule, icon=icon,
+                         stg1=a["name"], stg2=b["name"]))
+
+    # ② fest（あれば）
+    for s in raw["result"]["fest"]:
+        if not s.get("is_fest") or s["rule"] is None:
+            continue
+        st = to_dt(s["start_time"]).astimezone(UK)
+        if st.hour not in NIGHT_HOURS:
+            continue
+        et   = to_dt(s["end_time"]).astimezone(UK)
+        rule = s["rule"]["name"]; icon = EMOJI.get(rule, "")
+        a, b = s["stages"]
+        rows.append(dict(src="fest", start=st, end=et,
+                         rule=rule, icon=icon,
+                         stg1=a["name"], stg2=b["name"]))
+
+    # ③ 時刻順で並べ替えて先頭４つだけ返す
+    rows.sort(key=lambda r: r["start"])
+    return rows[:4]
 
 # ───────── main ─────────
 def main():
-    now_uk = datetime.datetime.now(UK)
-    raw    = requests.get(API_SCHEDULE, headers={"User-Agent":UA}, timeout=10).json()
-    slots  = raw["result"]["bankara_open"]      # dict 構造は固定
+    raw   = requests.get(API_SCHEDULE, headers={"User-Agent":UA}, timeout=10).json()
+    rows  = pick_rows(raw)
 
-    bankara_rows = night_bankara(slots)
-    if len(bankara_rows) == 4:                  # 4 枠そろった
-        body = build_lines(bankara_rows)
-    else:                                       # 不足 ⇒ フェス枠で置換
-        fest_rows = night_fest(raw["result"]["fest"])
-        body      = build_lines(fest_rows) if fest_rows else ""
-        if not body:
-            body = "該当するローテーションはありません。"
-        bankara_rows = night_bankara(slots)
-
-    if bankara_rows:                          # 1 件でも取れたらとりあえず出す
-        body = build_lines(bankara_rows)
-        if len(bankara_rows) < 4 and len(fest_rows) > 0:
-            body += "\n"+"バンカラマッチ終了！"+ "\n"+"これよりフェス開始！"+ "\n"
-        elif len(bankara_rows) == 0:
-            body += "\n""フェス開催中！" 
-
-        # 足りなかったぶんだけフェスで補完したい場合は ↓ を有効に
-        if len(bankara_rows) < 4:
-            fest_rows = night_fest(raw["result"]["fest"])
-            body += ("\n" + build_lines(fest_rows[:4-len(bankara_rows)])) if fest_rows else ""
-
-    else:                                     # まったく取れない ⇒ フェス or なし
-        fest_rows = night_fest(raw["result"]["fest"])
-        body = build_lines(fest_rows) if fest_rows else "該当するローテーションはありません"
-    
-
-    header  = fest_header()                     # 開催なら付加
+    if not rows:                     # 何も取れなかったときの保険
+        body = "該当するローテーションはありません。"
+    else:
+        body = build_lines(rows)     # 時系列で４つ並んだ本文
     today_str = datetime.datetime.now(UK).strftime("%Y/%m/%d")
     title   = (
         f"【今日({today_str})\n"
@@ -150,7 +184,7 @@ def main():
         f"バンカラマッチ(オープン)】🦑\n"
         f"\n"
     )
-    push(title + header + body)
+    push(title + body)
 
 if __name__ == "__main__":
     main()
