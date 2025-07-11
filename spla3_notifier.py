@@ -18,8 +18,8 @@ TOKEN        = os.environ["LINE_CHANNEL_ACCESS_TOKEN"]
 USERS        = os.environ["LINE_USER_IDS"].split(",")
 
 EMOJI = {
-    "ガチエリア":"⛳️", "ガチヤグラ":"🚚", "ガチホコバトル":"🐉", "ガチアサリ":"🏉",
-    "ナワバリバトル":"🖌️", "トリカラバトル":"🍗"
+    "ガチエリア":"⛳️", "ガチヤグラ":"🗼", "ガチホコバトル":"🐲", "ガチアサリ":"🏉",
+    "ナワバリバトル":"🎨", "トリカラバトル":"🇫🇷"
 }
 
 # ───────── util ─────────
@@ -39,66 +39,7 @@ def push(text):
         requests.post("https://api.line.me/v2/bot/message/push",
                       json=body, headers=hdr, timeout=10)
 
-# ───────── ① bankara-open 抽出 ─────────
-def night_bankara(slots):
-    out = []
-    for s in slots:                        # list(dict)
-        st = to_dt(s["start_time"]).astimezone(UK)
-        if st.hour not in NIGHT_HOURS:
-            continue
-        et = to_dt(s["end_time"]).astimezone(UK)
-        rule = s["rule"]["name"]; icon = EMOJI.get(rule,"")
-        a,b = s["stages"]
-        out.append(dict(
-            start=st, end=et, rule=rule, icon=icon,
-            stg1=a["name"], stg2=b["name"]
-        ))
-    return out
 
-# ───────── ② フェス枠抽出 ─────────
-def night_fest(slots):
-    out = []
-    for s in slots:
-        if not s.get("is_fest"):          # is_fest==true
-            continue
-        if s["rule"] is None:             # 開催前の空白枠は除外
-            continue
-        st = to_dt(s["start_time"]).astimezone(UK)
-        if st.hour not in NIGHT_HOURS:
-            continue
-        et = to_dt(s["end_time"]).astimezone(UK)
-        rule = s["rule"]["name"]; icon = EMOJI.get(rule,"")
-        a,b = s["stages"]
-        out.append(dict(
-            start=st, end=et, rule=rule, icon=icon,
-            stg1=a["name"], stg2=b["name"]
-        ))
-    return out
-
-# ───────── ③ フェス開催判定 ─────────
-def fest_header():
-    data = requests.get(API_FEST, headers={"User-Agent":UA}, timeout=10).json()
-    # data  → list だったらそのまま
-    if isinstance(data, list):
-        fest_list = data
-    # data["festivals"] 直下に配列があるパターン
-    elif "festivals" in data:
-        fest_list = data["festivals"]
-    # data["result"]["festivals"] になっている標準パターン
-    elif "result" in data and "festivals" in data["result"]:
-        fest_list = data["result"]["festivals"]
-    else:
-        fest_list = []
-    print(f"フェス候補: {len(fest_list)} 件")
-    now = datetime.datetime.utcnow().replace(tzinfo=tz.UTC)
-    for f in fest_list:
-        st, ed = map(to_dt, (f["start_time"], f["end_time"]))
-        if st - datetime.timedelta(days=2) <= now <= ed:
-            teams = " vs ".join(t["team_name"] for t in f["teams"])
-            return f"【フェス開催中🎉】\n勢力: {teams}\n"
-    return ""                              # 該当なし
-
-# ───────── ④ メッセージ生成 ─────────
 def fmt(r: dict) -> str:
     """1 スロット分をテキスト化"""
     return (
