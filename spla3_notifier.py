@@ -5,8 +5,10 @@
 - 4 枠足りなければ /results の is_fest==true を代わりに表示
 - フェス開催中または 48h 前ならヘッダーで告知
 """
-import os, requests, datetime, pytz
+import os, requests, pytz
+from datetime import datetime
 from dateutil import tz, parser
+from random import choice
 
 # ───────── 定数 ─────────
 API_SCHEDULE = "https://spla3.yuu26.com/api/schedule"
@@ -21,13 +23,24 @@ EMOJI = {
     "ガチエリア":"⛳️", "ガチヤグラ":"🗼", "ガチホコバトル":"🐲", "ガチアサリ":"🏉",
     "ナワバリバトル":"🎨", "トリカラバトル":"🇫🇷"
 }
+GREETINGS = {
+    "おはようございます！",
+    "今日もいい日になりますよう！！",
+    "おはよう!素敵な1日になりますように！",
+    "Good morning!",
+    "本日も憂鬱な朝がやってきました。",
+    "よく眠れましたか？今日も1日フルパワーで！！",
+    "おはようございます。今日も一日頑張りましょう。",
+    "朝だー！！！目ぇ覚ませーーー！！！",
+    "おはよう！！テンションぶち上げてくぞーー！"
+}
 
 # ───────── util ─────────
 def to_dt(val):
     if isinstance(val, (int, float)):
-        return datetime.datetime.fromtimestamp(val, tz.UTC)
+        return datetime.fromtimestamp(val, tz.UTC)
     try:
-        return datetime.datetime.fromtimestamp(int(val), tz.UTC)
+        return datetime.fromtimestamp(int(val), tz.UTC)
     except Exception:
         return parser.isoparse(val)
 
@@ -74,15 +87,22 @@ def build_lines(rows: list[dict]) -> str:
 
 # ───────── 抽出関数を少し整理 ─────────
 def pick_rows(raw):
-    """bankara_open と fest を 19/21/23/01 BST だけ抽出して返す"""
-    rows = []
+    rows = []  # 抽出結果を格納するリスト
+    # ── 1. 今日が週末か判定 ──
+    now_uk = datetime.now(UK)
+    if now_uk.weekday() >= 5:  # 5=土, 6=日
+        hours = {11, 13, 15, 17, 19, 21, 23, 1}
+        limit = None
+    else:
+        hours = NIGHT_HOURS
+        limit = 4
 
     # ① bankara_open
     for s in raw["result"]["bankara_open"]:
         if s["rule"] is None:            # 空スロット無し
             continue
         st = to_dt(s["start_time"]).astimezone(UK)
-        if st.hour not in NIGHT_HOURS:
+        if st.hour not in hours:
             continue
         et   = to_dt(s["end_time"]).astimezone(UK)
         rule = s["rule"]["name"]; icon = EMOJI.get(rule, "")
@@ -96,7 +116,7 @@ def pick_rows(raw):
         if not s.get("is_fest") or s["rule"] is None:
             continue
         st = to_dt(s["start_time"]).astimezone(UK)
-        if st.hour not in NIGHT_HOURS:
+        if st.hour not in hours:
             continue
         et   = to_dt(s["end_time"]).astimezone(UK)
         rule = s["rule"]["name"]; icon = EMOJI.get(rule, "")
@@ -107,7 +127,7 @@ def pick_rows(raw):
 
     # ③ 時刻順で並べ替えて先頭４つだけ返す
     rows.sort(key=lambda r: r["start"])
-    return rows[:4]
+    return rows if limit is None else rows[:limit]
 
 # ───────── main ─────────
 def main():
@@ -118,14 +138,18 @@ def main():
         body = "該当するローテーションはありません。"
     else:
         body = build_lines(rows)     # 時系列で４つ並んだ本文
-    today_str = datetime.datetime.now(UK).strftime("%Y/%m/%d")
+    today_str = datetime.now(UK).strftime("%Y/%m/%d")
     title   = (
         f"【今日({today_str})\n"
         f"19時以降の\n"
         f"バンカラマッチ(オープン)】🦑\n"
         f"\n"
     )
-    push(title + body)
+    greeting = choice(list(GREETINGS)) + "\n"
+    now_uk = datetime.now(UK)
+    if now_uk.weekday() >= 5:  # 5=土, 6=日
+        greeting = "週末なので1日のスケジュールを通知するよ！" + "\n" + greeting
+    push(greeting + "\n" + title + body)
 
 if __name__ == "__main__":
     main()
