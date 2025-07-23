@@ -8,6 +8,7 @@ importlib_metadata==8.7.0
 itsdangerous==2.2.0
 Jinja2==3.1.6
 MarkupSafe==3.0.2
+pillow==11.3.0
 python-dateutil==2.9.0.post0
 pytz==2025.2
 requests==2.32.4
