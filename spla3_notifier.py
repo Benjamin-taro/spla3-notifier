@@ -102,6 +102,9 @@ def pick_rows(raw):
         if s["rule"] is None:            # 空スロット無し
             continue
         st = to_dt(s["start_time"]).astimezone(UK)
+        # ── ここでデバッグログ ──
+        print(f"[DEBUG] bankara slot start={st:%m/%d %H:%M}  hour={st.hour} "
+              f"{'OK' if st.hour in hours else 'SKIP'}")
         if st.hour not in hours:
             continue
         et   = to_dt(s["end_time"]).astimezone(UK)
@@ -132,23 +135,35 @@ def pick_rows(raw):
 # ───────── main ─────────
 def main():
     raw   = requests.get(API_SCHEDULE, headers={"User-Agent":UA}, timeout=10).json()
+    # --- デバッグログ：生 API データ件数を確認
+    print(f"[DEBUG] raw bankara_open: {len(raw['result'].get('bankara_open', []))} 件, "
+          f"fest: {len(raw['result'].get('fest', []))} 件")
     rows  = pick_rows(raw)
+    # --- デバッグログ：フィルタ後の行数を確認
+    print(f"[DEBUG] filtered rows: {len(rows)} 件")
+    now_uk = datetime.now(UK)
 
     if not rows:                     # 何も取れなかったときの保険
         body = "該当するローテーションはありません。"
     else:
         body = build_lines(rows)     # 時系列で４つ並んだ本文
     today_str = datetime.now(UK).strftime("%Y/%m/%d")
-    title   = (
-        f"【今日({today_str})\n"
-        f"19時以降の\n"
-        f"バンカラマッチ(オープン)】🦑\n"
-        f"\n"
-    )
-    greeting = choice(list(GREETINGS)) + "\n"
-    now_uk = datetime.now(UK)
     if now_uk.weekday() >= 5:  # 5=土, 6=日
-        greeting = "週末なので1日のスケジュールを通知するよ！" + "\n" + greeting
+        title   = (
+            f"【今日({today_str})の\n"
+            f"バンカラマッチ(オープン)】🦑\n"
+            f"\n"
+        )
+    else:
+        title   = (
+            f"【今日({today_str})\n"
+            f"19時以降の\n"
+            f"バンカラマッチ(オープン)】🦑\n"
+            f"\n"
+        )
+    greeting = choice(list(GREETINGS)) + "\n"
+    if now_uk.weekday() >= 5:  # 5=土, 6=日
+        greeting = "週末なので1日のスケジュールを通知するよ！" + "\n" 
     push(greeting + "\n" + title + body)
 
 if __name__ == "__main__":
