@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+      GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
+      SHEET_ID:                   ${{ secrets.SHEET_ID }}          # ← シート ID
+      SHEET_GID:                  ${{ secrets.SHEET_GID }}         # ← シート GID
       LINE_USER_IDS:            ${{ secrets.LINE_USER_IDS }}   # ← plural
       TZ: Europe/London
     steps:
