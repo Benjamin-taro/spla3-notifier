@@ -188,7 +188,7 @@ def main():
     #greeting = choice(list(GREETINGS)) + "\n"
     greeting = load_greeting_from_sheet() + "\n"
     if now_uk.weekday() >= 5:  # 5=土, 6=日
-        greeting = load_greeting_from_sheet() + "\n"+"週末なので1日のスケジュールを通知するよ！" + "\n" 
+        greeting = "週末なので1日のスケジュールを通知するよ！" + "\n"
     push(greeting + "\n" + title + body)
 
 if __name__ == "__main__":
