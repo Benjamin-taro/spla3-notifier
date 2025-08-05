@@ -21,7 +21,6 @@ UK           = pytz.timezone("Europe/London")
 NIGHT_HOURS  = {19, 21, 23, 1}             # BST
 TOKEN        = os.environ["LINE_CHANNEL_ACCESS_TOKEN"]
 USERS        = os.environ["LINE_USER_IDS"].split(",")
-
 EMOJI = {
     "ガチエリア":"⛳️", "ガチヤグラ":"🗼", "ガチホコバトル":"🐲", "ガチアサリ":"🏉",
     "ナワバリバトル":"🎨", "トリカラバトル":"🇫🇷"
@@ -43,14 +42,18 @@ import traceback
 def load_greeting_from_sheet() -> str:
     try:
         raw = os.environ["GOOGLE_SHEETS_CREDENTIALS"]  # Secrets から渡す
+        #raw = GOOGLE_SHEETS_CREDENTIALS  # Secrets から渡す
         creds = Credentials.from_service_account_info(
             json.loads(raw),
+            #raw,
             scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
         )
         gc = gspread.authorize(creds)
 
         sh = gc.open_by_key(os.environ.get("SHEET_ID", ""))
+        #sh = gc.open_by_key(SHEET_ID)
         ws = sh.get_worksheet_by_id(int(os.environ.get("SHEET_GID", "0")))
+        #ws = sh.get_worksheet_by_id(int(SHEET_GID))
         colB = ws.col_values(2)[1:]   # B2 以降
         values = [v.strip() for v in colB if v and v.strip()]
         return choice(values) if values else "Good morning!"
