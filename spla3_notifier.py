@@ -48,7 +48,7 @@ def load_greeting_from_sheet() -> str:
         creds = Credentials.from_service_account_info(
             json.loads(raw),
             #raw,
-            scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
+            scopes=["https://www.googleapis.com/auth/spreadsheets",]
         )
         gc = gspread.authorize(creds)
 
