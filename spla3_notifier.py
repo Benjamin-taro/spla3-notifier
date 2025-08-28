@@ -8,10 +8,11 @@
 import os, requests, pytz, json
 from datetime import datetime
 from dateutil import tz, parser
-from random import choice
+from random import choices
 import gspread
 from google.oauth2.service_account import Credentials
 from random import choice
+import traceback
 
 # ───────── 定数 ─────────
 API_SCHEDULE = "https://spla3.yuu26.com/api/schedule"
@@ -37,12 +38,13 @@ GREETINGS = {
     "おはよう！！テンションぶち上げてくぞーー！"
 }
 
-import traceback
+NO_REPEAT_DAYS = 3
+ALPHA = 0.15  # 経過日の影響係数（お好みで調整）
 
 def load_greeting_from_sheet() -> str:
     try:
         raw = os.environ["GOOGLE_SHEETS_CREDENTIALS"]  # Secrets から渡す
-        #raw = GOOGLE_SHEETS_CREDENTIALS  # Secrets から渡す
+        # raw = GOOGLE_SHEETS_CREDENTIALS  # Secrets から渡す
         creds = Credentials.from_service_account_info(
             json.loads(raw),
             #raw,
@@ -51,12 +53,62 @@ def load_greeting_from_sheet() -> str:
         gc = gspread.authorize(creds)
 
         sh = gc.open_by_key(os.environ.get("SHEET_ID", ""))
-        #sh = gc.open_by_key(SHEET_ID)
+        # sh = gc.open_by_key(SHEET_ID)
         ws = sh.get_worksheet_by_id(int(os.environ.get("SHEET_GID", "0")))
-        #ws = sh.get_worksheet_by_id(int(SHEET_GID))
-        colB = ws.col_values(2)[1:]   # B2 以降
-        values = [v.strip() for v in colB if v and v.strip()]
-        return choice(values) if values else "Good morning!"
+        # B2:D をまとめて取得（[ [msg, count, last], ... ]）
+        rows = ws.get("B2:D")  # なくても [] が来る
+        today = datetime.now(UK).date()
+
+        candidates = []  # (row_idx, msg, count, days_since, weight)
+        for i, r in enumerate(rows, start=2):  # シート行番号は2から
+            msg = (r[0] if len(r) >= 1 else "").strip()
+            if not msg:
+                continue
+            # count
+            try:
+                cnt = int((r[1] if len(r) >= 2 else "").strip() or "0")
+            except:
+                cnt = 0
+            # last_used
+            last_raw = (r[2] if len(r) >= 3 else "").strip()
+            days_since = 999
+            if last_raw:
+                try:
+                    # "YYYY-MM-DD" 前提。もし時刻付きでも parser でOK
+                    d = datetime.fromisoformat(last_raw).date()
+                    days_since = (today - d).days
+                except Exception:
+                    try:
+                        d = parser.isoparse(last_raw).date()
+                        days_since = (today - d).days
+                    except Exception:
+                        days_since = 999
+
+            # 直近 NO_REPEAT_DAYS 日は除外
+            if days_since < NO_REPEAT_DAYS:
+                weight = 0.0
+            else:
+                # 重み = 回数逆数 × 経過日ボーナス
+                # 経過日の上限を軽くかけてもOK（例: min(days_since, 30)）
+                weight = (1.0 / (cnt + 1)) * (1.0 + ALPHA * min(days_since, 30))
+
+            candidates.append((i, msg, cnt, days_since, weight))
+
+        # すべて 0 なら、除外条件を外して素直に等確率
+        weights = [w for *_, w in candidates]
+        if not candidates:
+            return "Good morning!"
+        if all(w == 0 for w in weights):
+            weights = [1.0] * len(candidates)
+
+        # 重み付き抽選
+        chosen = choices(candidates, weights=weights, k=1)[0]
+        row_idx, msg, cnt, _, _ = chosen
+
+        # 使用回数/最終使用日を更新
+        ws.update(f"C{row_idx}:D{row_idx}", [[str(cnt + 1), today.isoformat()]])
+
+        return msg
     except Exception as e:
         print("[WARN] Sheets 読み込み失敗:", repr(e))
         print(traceback.format_exc())
