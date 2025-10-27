@@ -133,13 +133,20 @@ def push(text):
 
 
 def fmt(r: dict) -> str:
-    """1 スロット分をテキスト化"""
+    """1 スロット分をテキスト化（UK と日本時間を併記）"""
+    JST = pytz.timezone("Asia/Tokyo")
+    uk_st, uk_et = r["start"], r["end"]
+    jst_st = uk_st.astimezone(JST)
+    jst_et = uk_et.astimezone(JST)
+
     return (
-        f"- {r['start']:%m/%d %H:%M}–{r['end']:%H:%M}\n"
+        f"- {uk_st:%m/%d %H:%M}–{uk_et:%H:%M}\n"
+        f"- (日本時間 {jst_st:%m/%d %H:%M}–{jst_et:%H:%M})\n"
         f"  {r['rule']}{r['icon']}\n"
         f"  {r['stg1']}\n"
         f"  {r['stg2']}\n"
     )
+
 
 def build_lines(rows: list[dict]) -> str:
     if not rows:
