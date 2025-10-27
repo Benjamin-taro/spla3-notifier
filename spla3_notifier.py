@@ -19,7 +19,7 @@ API_SCHEDULE = "https://spla3.yuu26.com/api/schedule"
 API_FEST     = "https://spla3.yuu26.com/api/festivals"
 UA           = "Splatoon3Notifier/3.0 (example@mail)"
 UK           = pytz.timezone("Europe/London")
-NIGHT_HOURS  = {19, 21, 23, 1}             # BST
+NIGHT_HOURS  = {18, 19, 20, 21, 22, 23, 0, 1}             # Adjusted to both BST and GMT
 TOKEN        = os.environ["LINE_CHANNEL_ACCESS_TOKEN"]
 USERS        = os.environ["LINE_USER_IDS"].split(",")
 EMOJI = {
@@ -170,7 +170,7 @@ def pick_rows(raw):
     # ── 1. 今日が週末か判定 ──
     now_uk = datetime.now(UK)
     if now_uk.weekday() >= 5:  # 5=土, 6=日
-        hours = {11, 13, 15, 17, 19, 21, 23, 1}
+        hours = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1}
         limit = None
     else:
         hours = NIGHT_HOURS
