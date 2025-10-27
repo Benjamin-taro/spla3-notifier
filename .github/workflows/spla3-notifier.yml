@@ -2,7 +2,7 @@ name: Splatoon 3 Bankara Notifier      # ← タイトルも合わせて変更�
 
 on:
   schedule:
-    - cron: '5 7 * * *'          
+    - cron: '5 * * * *'  # 毎時5分に実行          
   workflow_dispatch:
 
 jobs:
