@@ -223,8 +223,8 @@ def main():
     # ここを追加 ─────────────────────────────────────────
     now_uk = datetime.now(UK)
     # 余裕をもって「8:00台だけ実行」にするなら minute 条件も入れる
-    if not (now_uk.hour == 8 and now_uk.minute < 10):
-        print(f"[INFO] 現在 {now_uk:%Y-%m-%d %H:%M} (Europe/London)。8時ではないため終了。")
+    if now_uk.hour != 8:
+        print(f"[INFO] 現在 {now_uk:%Y-%m-%d %H:%M} (Europe/London)。8時台ではないため終了。")
         return
     # ────────────────────────────────────────────────────
     raw   = requests.get(API_SCHEDULE, headers={"User-Agent":UA}, timeout=10).json()
