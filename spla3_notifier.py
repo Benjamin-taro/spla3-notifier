@@ -241,6 +241,7 @@ def main():
     else:
         body = build_lines(rows)     # 時系列で４つ並んだ本文
     today_str = datetime.now(UK).strftime("%Y/%m/%d")
+    '''
     if now_uk.weekday() >= 5:  # 5=土, 6=日
         title   = (
             f"【今日({today_str})の\n"
@@ -249,11 +250,17 @@ def main():
         )
     else:
         title   = (
-            f"【今日({today_str})\n"
-            f"19時以降の\n"
-            f"バンカラマッチ(オープン)】🦑\n"
-            f"\n"
+                f"【今日({today_str})\n"
+                f"19時以降の\n"
+                f"バンカラマッチ(オープン)】🦑\n"
+                f"\n"
         )
+    '''
+    title = (
+        f"【今日({today_str})の\n"
+        f"バンカラマッチ(オープン)】🦑\n"
+        f"\n"
+    )
     #greeting = choice(list(GREETINGS)) + "\n"
     greeting = load_greeting_from_sheet() + "\n"
     if now_uk.weekday() >= 5:  # 5=土, 6=日
